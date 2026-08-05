@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Nexora Backend API
 
 > **AI-Powered Enterprise Student Management & ERP System**
@@ -459,3 +460,6 @@ public class RetrofitClient {
     }
 }
 ```
+=======
+# NexoraBackend
+>>>>>>> a0070a18f655ade789bf3a36c1bbd8bbcc4aa5e3
