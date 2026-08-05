@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Nexora Backend API
 
 > **AI-Powered Enterprise Student Management & ERP System**
@@ -199,7 +198,7 @@ npm run prod    # Production mode with NODE_ENV=production
 
 ### Base URL
 ```
-http://localhost:5000
+https://nexorabackend-1cgs.onrender.com/
 ```
 
 ### Language Query Parameter
@@ -234,8 +233,6 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 | PATCH | `/api/students/:id` | Faculty/Admin | Partial record update |
 | DELETE | `/api/students/:id` | Admin | Delete student |
 
-**Query Params:** `?department=CSE&semester=3&section=A&division=A&search=Neel&page=1&limit=20`
-
 ---
 
 ### Faculty Routes — `/api/faculty`
@@ -247,8 +244,6 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 | PUT | `/api/faculty/:id` | Private | Update faculty profile |
 | PATCH | `/api/faculty/:id` | Admin | Partial update |
 | DELETE | `/api/faculty/:id` | Admin | Delete faculty |
-
-**Query Params:** `?department=CSE&designation=Professor&search=Patel&page=1&limit=20`
 
 ---
 
@@ -282,7 +277,7 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 |---|---|---|---|
 | POST | `/api/attendance/mark` | Faculty/Admin | Mark daily full-day attendance |
 | POST | `/api/attendance/lecture` | Faculty/Admin | Mark lecture-wise attendance |
-| GET | `/api/attendance/student/:studentId` | Private | Student attendance stats (overall, subject-wise, monthly) |
+| GET | `/api/attendance/student/:studentId` | Private | Student attendance stats |
 | GET | `/api/attendance/class` | Faculty/Admin | Class attendance history |
 
 ---
@@ -295,7 +290,6 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 | PATCH | `/api/results/:id/publish` | Faculty/Admin | Publish result (sends FCM) |
 | GET | `/api/results/student/:studentId` | Private | Get student result cards |
 | DELETE | `/api/results/:id` | Faculty/Admin | Delete result |
-| GET | `/api/pdf/result/:resultId` | Private | Download result PDF |
 
 ---
 
@@ -307,9 +301,7 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 | POST | `/api/fees/record-payment` | Admin | Record payment transaction |
 | GET | `/api/fees/all` | Admin | All fees with financial summary |
 | GET | `/api/fees/student/:studentId` | Private | Student fee history + summary |
-| GET | `/api/fees/:id` | Private | Fee record by ID |
 | DELETE | `/api/fees/:id` | Admin | Delete fee record |
-| GET | `/api/pdf/fee-receipt/:feeId/transaction/:transactionId` | Private | Download fee receipt PDF |
 
 ---
 
@@ -317,56 +309,10 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| POST | `/api/notes` | Faculty/Admin | Upload study material (PDF/DOCX/PPT/ZIP/Image) |
+| POST | `/api/notes` | Faculty/Admin | Upload study material |
 | GET | `/api/notes` | Private | List/search notes |
 | GET | `/api/notes/:id/download` | Private | Download note file |
 | DELETE | `/api/notes/:id` | Faculty/Admin | Delete note |
-
-**Multipart Upload Field:** `note` (file)
-
----
-
-### Assignment Routes — `/api/assignments`
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| POST | `/api/assignments` | Faculty/Admin | Create assignment (optional file) |
-| GET | `/api/assignments` | Private | List assignments |
-| POST | `/api/assignments/:id/submit` | Student | Submit assignment solution |
-| POST | `/api/assignments/submission/:id/grade` | Faculty/Admin | Grade a submission |
-| GET | `/api/assignments/:id/submissions` | Faculty/Admin | List all submissions |
-
----
-
-### Notice Routes — `/api/notices`
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| POST | `/api/notices` | Faculty/Admin | Publish campus notice |
-| GET | `/api/notices` | Private | Get notices (role-filtered + search) |
-| DELETE | `/api/notices/:id` | Faculty/Admin | Delete notice |
-
-**Query Params:** `?category=Exam&department=CSE&search=result`
-
----
-
-### Timetable Routes — `/api/timetable`
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| POST | `/api/timetable` | Admin | Create or update day schedule |
-| GET | `/api/timetable/student` | Private | Get student timetable |
-| GET | `/api/timetable/faculty` | Faculty/Admin | Get faculty teaching schedule |
-
----
-
-### Notification Routes — `/api/notifications`
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| GET | `/api/notifications` | Private | Get user notifications (unread count) |
-| PATCH | `/api/notifications/:id/read` | Private | Mark notification as read |
-| POST | `/api/notifications/send` | Admin | Broadcast push notification |
 
 ---
 
@@ -376,24 +322,7 @@ Add `?lang=hi` or `?lang=gu` to any endpoint to receive responses in Hindi or Gu
 |---|---|---|---|
 | POST | `/api/ai/chat` | Private | Send prompt to Gemini AI assistant |
 | GET | `/api/ai/chat/history` | Private | Get chat conversation history |
-| DELETE | `/api/ai/chat/history` | Private | Clear chat history |
 | GET | `/api/ai/reports/student/:studentId` | Private | AI academic risk report |
-
----
-
-### Search Routes — `/api/search`
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| GET | `/api/search?q=keyword` | Private | Global search (students, faculty, notes, assignments, notices) |
-
----
-
-### Admin Routes — `/api/admin`
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| GET | `/api/admin/analytics` | Admin | ERP dashboard analytics |
 
 ---
 
@@ -404,62 +333,18 @@ All protected endpoints require the following header:
 Authorization: Bearer <accessToken>
 ```
 
-**Login Response:**
-```json
-{
-  "success": true,
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "role": "student",
-  "user": { ... }
-}
-```
-
-**Refresh Token (POST /api/auth/refresh-token):**
-```json
-{ "refreshToken": "<your_refresh_token>" }
-```
-
 ---
 
 ## Roles & Permissions
 
-| Role | Description | Key Permissions |
-|---|---|---|
-| `student` | Enrolled student | View own profile, fees, results, attendance, chat AI, download notes/assignments, submit assignments |
-| `faculty` | Teaching staff | All student views + mark attendance, upload notes, create assignments, grade submissions, create notices |
-| `super_admin` | Full system admin | Full CRUD access to all modules, manage departments, subjects, fees, analytics dashboard |
+| Role | Description |
+|---|---|
+| `student` | View profile, fees, results, attendance, chat AI |
+| `faculty` | Mark attendance, upload notes, upload results |
+| `super_admin` | Full system access, manage depts, analytics |
 
 ---
 
-## Android Retrofit Integration
+## Android App Integration
 
-Add this base configuration in your Android Retrofit setup:
-
-```java
-// RetrofitClient.java
-public class RetrofitClient {
-    private static final String BASE_URL = "http://YOUR_SERVER_IP:5000/";
-
-    public static Retrofit getInstance(String token) {
-        OkHttpClient client = new OkHttpClient.Builder()
-            .addInterceptor(chain -> {
-                Request request = chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer " + token)
-                    .addHeader("Accept-Language", "en")
-                    .build();
-                return chain.proceed(request);
-            })
-            .build();
-
-        return new Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build();
-    }
-}
-```
-=======
-# NexoraBackend
->>>>>>> a0070a18f655ade789bf3a36c1bbd8bbcc4aa5e3
+Ensure [AppConstants.java](file:///C:/Users/neelpatel/AndroidStudioProjects/Nexora2/app/src/main/java/com/neel/nexora/constants/AppConstants.java) is updated with the Base URL.
