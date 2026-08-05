@@ -1,0 +1,12 @@
+{
+    "WELCOME_MESSAGE": "Welcome to Nexora AI ERP API",
+    "AUTH_SUCCESS": "Authentication successful",
+    "INVALID_CREDENTIALS": "Invalid email or password",
+    "NOT_AUTHORIZED": "Not authorized to access this resource",
+    "TOKEN_EXPIRED": "Session expired, please log in again",
+    "RECORD_CREATED": "Record created successfully",
+    "RECORD_UPDATED": "Record updated successfully",
+    "RECORD_DELETED": "Record deleted successfully",
+    "RECORD_NOT_FOUND": "Requested resource not found",
+    "INTERNAL_ERROR": "Internal server error occurred"
+}
