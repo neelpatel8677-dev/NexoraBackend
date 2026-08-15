@@ -38,8 +38,12 @@ const SubjectSchema = new mongoose.Schema(
         ]
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+SubjectSchema.index({ department: 1, semester: 1 });
 
 module.exports = mongoose.model("Subject", SubjectSchema);
