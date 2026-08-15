@@ -1,13 +1,13 @@
 const Faculty = require("../models/Faculty");
 
 /**
- * @desc    Get list of all faculty members (with filtering & search)
+ * @desc    Get list of all faculty members
  * @route   GET /api/faculty
  * @access  Private
  */
 const getAllFaculty = async (req, res, next) => {
     try {
-        const { department, designation, search, page = 1, limit = 50 } = req.query;
+        const { department, designation, search, page = 1, limit = 100 } = req.query;
 
         let query = {};
         if (department) query.department = { $regex: department, $options: "i" };
@@ -24,21 +24,13 @@ const getAllFaculty = async (req, res, next) => {
         }
 
         const skip = (Number(page) - 1) * Number(limit);
-        const total = await Faculty.countDocuments(query);
         const facultyList = await Faculty.find(query)
             .select("-password -resetPasswordToken -resetPasswordExpire")
             .sort({ name: 1 })
             .skip(skip)
             .limit(Number(limit));
 
-        res.status(200).json({
-            success: true,
-            total,
-            page: Number(page),
-            pages: Math.ceil(total / Number(limit)),
-            count: facultyList.length,
-            faculty: facultyList
-        });
+        res.status(200).json(facultyList);
     } catch (error) {
         next(error);
     }
@@ -61,17 +53,14 @@ const getFacultyById = async (req, res, next) => {
             });
         }
 
-        res.status(200).json({
-            success: true,
-            faculty
-        });
+        res.status(200).json(faculty);
     } catch (error) {
         next(error);
     }
 };
 
 /**
- * @desc    Update faculty profile (faculty updates own profile; admin can update any)
+ * @desc    Update faculty profile
  * @route   PUT /api/faculty/:id
  * @access  Private
  */
@@ -86,7 +75,6 @@ const updateFacultyProfile = async (req, res, next) => {
             });
         }
 
-        // Faculty members can only update their own profile
         if (
             req.userRole === "faculty" &&
             req.user._id.toString() !== faculty._id.toString()
@@ -97,15 +85,7 @@ const updateFacultyProfile = async (req, res, next) => {
             });
         }
 
-        // Fields a faculty member can update on their own profile
-        const facultyAllowedFields = [
-            "name",
-            "phone",
-            "profileImage",
-            "fcmToken"
-        ];
-
-        // Fields only admin can change
+        const facultyAllowedFields = ["name", "phone", "profileImage", "fcmToken"];
         const adminAllowedFields = [
             ...facultyAllowedFields,
             "employeeId",
