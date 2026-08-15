@@ -13,8 +13,8 @@ const ResultSchema = new mongoose.Schema(
         },
         examType: {
             type: String,
-            enum: ["Midterm", "Final", "Class Test"],
-            default: "Final"
+            default: "Final",
+            trim: true
         },
         subjects: [
             {
@@ -71,8 +71,12 @@ const ResultSchema = new mongoose.Schema(
         }
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+ResultSchema.index({ student: 1, semester: 1 });
 
 module.exports = mongoose.model("Result", ResultSchema);
