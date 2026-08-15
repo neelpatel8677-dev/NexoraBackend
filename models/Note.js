@@ -7,6 +7,11 @@ const NoteSchema = new mongoose.Schema(
             required: [true, "Note title is required"],
             trim: true
         },
+        description: {
+            type: String,
+            default: "",
+            trim: true
+        },
         subject: {
             type: String,
             required: [true, "Subject name is required"],
@@ -28,11 +33,11 @@ const NoteSchema = new mongoose.Schema(
         },
         fileUrl: {
             type: String,
-            required: [true, "File path is required"]
+            default: ""
         },
         fileType: {
             type: String,
-            enum: ["PDF", "DOCX", "PPT", "ZIP", "IMAGE"],
+            enum: ["PDF", "DOCX", "DOC", "PPT", "PPTX", "ZIP", "IMAGE", "TXT", "NOTE", "OTHER"],
             default: "PDF"
         },
         fileSize: {
@@ -45,7 +50,9 @@ const NoteSchema = new mongoose.Schema(
         }
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
 
