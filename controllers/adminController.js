@@ -7,8 +7,8 @@ const Notice = require("../models/Notice");
 const Result = require("../models/Result");
 
 /**
- * @desc    Get Overall Admin ERP System Analytics
- * @route   GET /api/admin/analytics
+ * @desc    Get Admin ERP System Analytics & Dashboard
+ * @route   GET /api/admin/dashboard & GET /api/admin/analytics
  * @access  Private (Super Admin, Admin)
  */
 const getDashboardAnalytics = async (req, res, next) => {
@@ -44,18 +44,17 @@ const getDashboardAnalytics = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            analytics: {
-                totalStudents,
-                totalFaculty,
-                totalDepartments,
-                totalSubjects,
-                totalNotices,
-                totalResults,
-                financials: {
-                    totalAssigned: feesSummary.totalFeesAssigned,
-                    totalCollected: feesSummary.totalFeesCollected,
-                    pendingFees
-                }
+            message: "Dashboard data retrieved successfully",
+            totalStudents,
+            totalFaculty,
+            totalDepartments,
+            totalSubjects,
+            totalNotices,
+            totalResults,
+            financials: {
+                totalAssigned: feesSummary.totalFeesAssigned,
+                totalCollected: feesSummary.totalFeesCollected,
+                pendingFees
             }
         });
     } catch (error) {
