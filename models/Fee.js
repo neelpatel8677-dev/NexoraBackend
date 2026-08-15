@@ -42,7 +42,6 @@ const FeeSchema = new mongoose.Schema(
                 },
                 paymentMode: {
                     type: String,
-                    enum: ["Online", "Cash", "UPI", "Bank Transfer", "Cheque"],
                     default: "UPI"
                 },
                 referenceId: {
@@ -57,7 +56,9 @@ const FeeSchema = new mongoose.Schema(
         ]
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
 
