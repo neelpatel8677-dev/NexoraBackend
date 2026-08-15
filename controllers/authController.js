@@ -58,7 +58,12 @@ const registerStudent = async (req, res, next) => {
             fcmToken
         } = req.body;
 
-        const existingEmail = await Student.findOne({ email }) || await Faculty.findOne({ email }) || await Admin.findOne({ email });
+        const normalizedEmail = email ? email.toLowerCase().trim() : "";
+
+        const existingEmail = await Student.findOne({ email: normalizedEmail }) || 
+                              await Faculty.findOne({ email: normalizedEmail }) || 
+                              await Admin.findOne({ email: normalizedEmail });
+                              
         if (existingEmail) {
             return res.status(400).json({
                 success: false,
@@ -78,7 +83,7 @@ const registerStudent = async (req, res, next) => {
             enrollmentNo,
             rollNo: rollNo || "",
             name,
-            email,
+            email: normalizedEmail,
             password,
             department,
             branch: branch || "Computer Engineering",
@@ -136,7 +141,12 @@ const registerFaculty = async (req, res, next) => {
             });
         }
 
-        const existingEmail = await Faculty.findOne({ email }) || await Student.findOne({ email }) || await Admin.findOne({ email });
+        const normalizedEmail = email ? email.toLowerCase().trim() : "";
+
+        const existingEmail = await Faculty.findOne({ email: normalizedEmail }) || 
+                              await Student.findOne({ email: normalizedEmail }) || 
+                              await Admin.findOne({ email: normalizedEmail });
+                              
         if (existingEmail) {
             return res.status(400).json({
                 success: false,
@@ -147,7 +157,7 @@ const registerFaculty = async (req, res, next) => {
         const faculty = await Faculty.create({
             employeeId,
             name,
-            email,
+            email: normalizedEmail,
             password,
             department,
             designation: designation || "Assistant Professor",
@@ -182,15 +192,23 @@ const login = async (req, res, next) => {
     try {
         const { email, password, fcmToken } = req.body;
 
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide email and password"
+            });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
         // Check for Fixed Super Admin
-        const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || "admin@nexora.com";
+        const superAdminEmail = (process.env.SUPER_ADMIN_EMAIL || "admin@nexora.com").toLowerCase().trim();
         const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || "admin123";
 
-        if (email === superAdminEmail && password === superAdminPassword) {
+        if (normalizedEmail === superAdminEmail && password === superAdminPassword) {
             let user = await Admin.findOne({ email: superAdminEmail });
 
             if (!user) {
-                // Auto-create super admin if it doesn't exist in DB
                 user = await Admin.create({
                     name: "Super Admin",
                     email: superAdminEmail,
@@ -218,31 +236,35 @@ const login = async (req, res, next) => {
             });
         }
 
-        let user = await Student.findOne({ email });
+        // Search in Student, Faculty, then Admin collections
+        let user = await Student.findOne({ email: normalizedEmail });
         let userRole = "student";
 
         if (!user) {
-            user = await Faculty.findOne({ email });
+            user = await Faculty.findOne({ email: normalizedEmail });
             userRole = "faculty";
         }
 
         if (!user) {
-            user = await Admin.findOne({ email });
-            userRole = user ? user.role : "admin";
+            user = await Admin.findOne({ email: normalizedEmail });
+            userRole = user ? (user.role || "admin") : null;
         }
 
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: req.t ? req.t("INVALID_CREDENTIALS") : "Invalid email or password"
+                message: "Account not found with this email"
             });
         }
 
-        const isMatch = await user.matchPassword(password);
+        const isMatch = typeof user.matchPassword === "function" 
+            ? await user.matchPassword(password) 
+            : false;
+
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
-                message: req.t ? req.t("INVALID_CREDENTIALS") : "Invalid email or password"
+                message: "Invalid password. Please try again."
             });
         }
 
@@ -258,7 +280,7 @@ const login = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            message: req.t ? req.t("AUTH_SUCCESS") : "Login successful",
+            message: "Login successful",
             accessToken,
             refreshToken,
             role: userRole,
@@ -333,15 +355,18 @@ const logout = async (req, res, next) => {
 };
 
 /**
- * @desc    Forgot Password - Request reset link/token
+ * @desc    Forgot Password
  * @route   POST /api/auth/forgot-password
  * @access  Public
  */
 const forgotPassword = async (req, res, next) => {
     try {
         const { email } = req.body;
+        const normalizedEmail = email ? email.toLowerCase().trim() : "";
 
-        let user = await Student.findOne({ email }) || await Faculty.findOne({ email }) || await Admin.findOne({ email });
+        let user = await Student.findOne({ email: normalizedEmail }) || 
+                   await Faculty.findOne({ email: normalizedEmail }) || 
+                   await Admin.findOne({ email: normalizedEmail });
 
         if (!user) {
             return res.status(404).json({
@@ -358,7 +383,7 @@ const forgotPassword = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: "Password reset token sent to your email address",
-            resetToken // Included for mobile app convenience
+            resetToken
         });
     } catch (error) {
         next(error);
