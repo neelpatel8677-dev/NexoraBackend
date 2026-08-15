@@ -23,7 +23,6 @@ const assignFee = async (req, res, next) => {
             return res.status(404).json({ success: false, message: "Student not found" });
         }
 
-        // Update or create fee record for this semester
         let fee = await Fee.findOne({ student: studentId, semester: Number(semester) });
         if (fee) {
             fee.totalAmount = Number(totalAmount);
@@ -38,7 +37,6 @@ const assignFee = async (req, res, next) => {
             });
         }
 
-        // Notify student about fee assignment
         if (student.fcmToken) {
             await sendPushNotification(
                 student.fcmToken,
@@ -91,7 +89,6 @@ const recordPayment = async (req, res, next) => {
 
         await fee.save();
 
-        // Notify student of payment confirmation
         if (fee.student && fee.student.fcmToken) {
             await sendPushNotification(
                 fee.student.fcmToken,
@@ -121,7 +118,6 @@ const getStudentFees = async (req, res, next) => {
     try {
         const { studentId } = req.params;
 
-        // Students can only view their own fees
         if (
             req.userRole === "student" &&
             req.user._id.toString() !== studentId
@@ -136,20 +132,8 @@ const getStudentFees = async (req, res, next) => {
             .populate("student", "name enrollmentNo branch semester department")
             .sort({ semester: 1 });
 
-        // Summary calculations
-        const summary = {
-            totalSemesters: feeRecords.length,
-            totalFeeAssigned: feeRecords.reduce((acc, f) => acc + f.totalAmount, 0),
-            totalFeePaid: feeRecords.reduce((acc, f) => acc + f.paidAmount, 0),
-            totalFeePending: feeRecords.reduce((acc, f) => acc + Math.max(0, f.totalAmount - f.paidAmount), 0)
-        };
-
-        res.status(200).json({
-            success: true,
-            count: feeRecords.length,
-            summary,
-            fees: feeRecords
-        });
+        // Directly return list matching Retrofit Call<List<Fee>>
+        res.status(200).json(feeRecords);
     } catch (error) {
         next(error);
     }
@@ -177,7 +161,6 @@ const getAllFees = async (req, res, next) => {
             .skip(skip)
             .limit(Number(limit));
 
-        // Financial summary
         const aggregate = await Fee.aggregate([
             { $match: query },
             {
