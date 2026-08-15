@@ -35,8 +35,12 @@ const SubmissionSchema = new mongoose.Schema(
         }
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+SubmissionSchema.index({ assignment: 1, student: 1 });
 
 module.exports = mongoose.model("Submission", SubmissionSchema);
