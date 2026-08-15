@@ -1,79 +1,43 @@
-const Notice = require("../models/Notice");
-const { sendTopicNotification } = require("../services/fcmService");
+const Notification = require("../models/Notification");
+const { sendPushNotification, sendTopicNotification } = require("../services/fcmService");
 
 /**
- * @desc    Create Campus Notice
- * @route   POST /api/notices
- * @access  Private (Faculty, Admin)
+ * @desc    Get Notifications for Current User
+ * @route   GET /api/notifications
+ * @access  Private
  */
-const createNotice = async (req, res, next) => {
+const getUserNotifications = async (req, res, next) => {
     try {
-        const { title, content, category, department, semester, targetAudience } = req.body;
+        const notifications = await Notification.find({ user: req.user._id })
+            .sort({ createdAt: -1 })
+            .limit(50);
 
-        const attachment = req.file ? `/uploads/notes/${req.file.filename}` : "";
-
-        const notice = await Notice.create({
-            title,
-            content,
-            category: category || "General",
-            department: department || "",
-            semester: semester ? Number(semester) : null,
-            targetAudience: targetAudience || "All",
-            createdBy: req.user.name || (req.user.role === "admin" ? "Admin" : "Faculty"),
-            attachment
-        });
-
-        // FCM Broadcast
-        const topic = targetAudience === "Faculty" ? "faculty" : "students";
-        await sendTopicNotification(
-            topic,
-            `📢 New Notice: ${title}`,
-            content.substring(0, 100) + "..."
-        );
-
-        res.status(201).json({
-            success: true,
-            message: "Notice published successfully",
-            notice
-        });
+        // Directly return list matching Retrofit Call<List<Notification>>
+        res.status(200).json(notifications);
     } catch (error) {
         next(error);
     }
 };
 
 /**
- * @desc    Get / Search Notices
- * @route   GET /api/notices
+ * @desc    Mark Notification as Read
+ * @route   PATCH /api/notifications/:id/read
  * @access  Private
  */
-const getNotices = async (req, res, next) => {
+const markNotificationAsRead = async (req, res, next) => {
     try {
-        const { category, department, search } = req.query;
-
-        let query = {};
-        if (category) query.category = category;
-        if (department) query.department = department;
-
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: "i" } },
-                { content: { $regex: search, $options: "i" } }
-            ];
+        const notification = await Notification.findById(req.params.id);
+        if (!notification) {
+            return res.status(404).json({ success: false, message: "Notification not found" });
         }
 
-        const userRole = req.userRole;
-        if (userRole === "student") {
-            query.targetAudience = { $in: ["All", "Student"] };
-        } else if (userRole === "faculty") {
-            query.targetAudience = { $in: ["All", "Faculty"] };
-        }
-
-        const notices = await Notice.find(query).sort({ createdAt: -1 });
+        notification.read = true;
+        await notification.save();
 
         res.status(200).json({
             success: true,
-            count: notices.length,
-            notices
+            message: "Notification marked as read",
+            notification
         });
     } catch (error) {
         next(error);
@@ -81,26 +45,31 @@ const getNotices = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete Notice
- * @route   DELETE /api/notices/:id
- * @access  Private (Faculty, Admin)
+ * @desc    Send Push Notification (Admin)
+ * @route   POST /api/notifications/send
+ * @access  Private (Admin)
  */
-const deleteNotice = async (req, res, next) => {
+const sendDirectNotification = async (req, res, next) => {
     try {
-        const notice = await Notice.findById(req.params.id);
-        if (!notice) {
-            return res.status(404).json({ success: false, message: "Notice not found" });
+        const { targetType, target, title, body, type } = req.body;
+
+        if (targetType === "topic") {
+            await sendTopicNotification(target || "students", title, body, { type: type || "General" });
+        } else {
+            await sendPushNotification("", title, body, { type: type || "General" }, target);
         }
 
-        await notice.deleteOne();
-        res.status(200).json({ success: true, message: "Notice deleted successfully" });
+        res.status(200).json({
+            success: true,
+            message: "Push notification dispatched successfully"
+        });
     } catch (error) {
         next(error);
     }
 };
 
 module.exports = {
-    createNotice,
-    getNotices,
-    deleteNotice
+    getUserNotifications,
+    markNotificationAsRead,
+    sendDirectNotification
 };
