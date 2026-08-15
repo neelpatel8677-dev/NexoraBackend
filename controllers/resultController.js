@@ -3,92 +3,97 @@ const Student = require("../models/Student");
 const { sendPushNotification } = require("../services/fcmService");
 
 /**
- * @desc    Upload / Create Result
+ * @desc    Upload / Create Result (Supports single result or array batch)
  * @route   POST /api/results/upload
  * @access  Private (Faculty, Admin)
  */
 const uploadResult = async (req, res, next) => {
     try {
-        const { studentId, semester, examType, subjects, sgpa, cgpa, isPublished } = req.body;
+        const payload = Array.isArray(req.body) ? req.body : [req.body];
 
-        if (!studentId || !semester || !subjects || !Array.isArray(subjects)) {
+        if (payload.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "Please provide studentId, semester, and subjects array"
+                message: "Payload cannot be empty"
             });
         }
 
-        const student = await Student.findById(studentId);
-        if (!student) {
-            return res.status(404).json({ success: false, message: "Student not found" });
-        }
+        for (const item of payload) {
+            const { studentId, student, semester, examType, subjects, sgpa, cgpa, isPublished } = item;
+            const targetStudentId = studentId || student;
 
-        // Calculate total marks & percentage per subject
-        let grandTotalObtained = 0;
-        let grandTotalMax = 0;
+            if (!targetStudentId || !semester || !subjects || !Array.isArray(subjects)) {
+                continue;
+            }
 
-        const processedSubjects = subjects.map((sub) => {
-            const intM = Number(sub.internalMarks || 0);
-            const extM = Number(sub.externalMarks || 0);
-            const total = sub.totalMarks ? Number(sub.totalMarks) : intM + extM;
-            const maxM = Number(sub.maxMarks || 100);
+            const studentDoc = await Student.findById(targetStudentId);
+            if (!studentDoc) continue;
 
-            grandTotalObtained += total;
-            grandTotalMax += maxM;
+            let grandTotalObtained = 0;
+            let grandTotalMax = 0;
 
-            return {
-                subjectCode: sub.subjectCode || "",
-                subjectName: sub.subjectName,
-                internalMarks: intM,
-                externalMarks: extM,
-                totalMarks: total,
-                maxMarks: maxM,
-                grade: sub.grade || (total >= 40 ? "PASS" : "FAIL")
-            };
-        });
+            const processedSubjects = subjects.map((sub) => {
+                const intM = Number(sub.internalMarks || 0);
+                const extM = Number(sub.externalMarks || 0);
+                const total = sub.totalMarks ? Number(sub.totalMarks) : intM + extM;
+                const maxM = Number(sub.maxMarks || 100);
 
-        const overallPct = grandTotalMax > 0 ? (grandTotalObtained / grandTotalMax) * 100 : 0;
+                grandTotalObtained += total;
+                grandTotalMax += maxM;
 
-        let result = await Result.findOne({
-            student: studentId,
-            semester,
-            examType: examType || "Final"
-        });
+                return {
+                    subjectCode: sub.subjectCode || "",
+                    subjectName: sub.subjectName,
+                    internalMarks: intM,
+                    externalMarks: extM,
+                    totalMarks: total,
+                    maxMarks: maxM,
+                    grade: sub.grade || (total >= 40 ? "PASS" : "FAIL")
+                };
+            });
 
-        if (result) {
-            result.subjects = processedSubjects;
-            result.sgpa = sgpa !== undefined ? sgpa : result.sgpa;
-            result.cgpa = cgpa !== undefined ? cgpa : result.cgpa;
-            result.percentage = parseFloat(overallPct.toFixed(2));
-            result.isPublished = isPublished !== undefined ? isPublished : result.isPublished;
-            await result.save();
-        } else {
-            result = await Result.create({
-                student: studentId,
+            const overallPct = grandTotalMax > 0 ? (grandTotalObtained / grandTotalMax) * 100 : 0;
+
+            let result = await Result.findOne({
+                student: targetStudentId,
                 semester,
-                examType: examType || "Final",
-                subjects: processedSubjects,
-                sgpa: sgpa || 0,
-                cgpa: cgpa || 0,
-                percentage: parseFloat(overallPct.toFixed(2)),
-                isPublished: isPublished || false
+                examType: examType || "Final"
             });
+
+            if (result) {
+                result.subjects = processedSubjects;
+                result.sgpa = sgpa !== undefined ? sgpa : result.sgpa;
+                result.cgpa = cgpa !== undefined ? cgpa : result.cgpa;
+                result.percentage = parseFloat(overallPct.toFixed(2));
+                result.isPublished = isPublished !== undefined ? isPublished : result.isPublished;
+                await result.save();
+            } else {
+                result = await Result.create({
+                    student: targetStudentId,
+                    semester,
+                    examType: examType || "Final",
+                    subjects: processedSubjects,
+                    sgpa: sgpa || 0,
+                    cgpa: cgpa || 0,
+                    percentage: parseFloat(overallPct.toFixed(2)),
+                    isPublished: isPublished || false
+                });
+            }
+
+            if (result.isPublished && studentDoc.fcmToken) {
+                await sendPushNotification(
+                    studentDoc.fcmToken,
+                    "Result Published 🎓",
+                    `Your Semester ${semester} exam result for ${examType || "Final"} has been published.`,
+                    { type: "Result" },
+                    studentDoc._id
+                );
+            }
         }
 
-        if (result.isPublished && student.fcmToken) {
-            await sendPushNotification(
-                student.fcmToken,
-                "Result Published 🎓",
-                `Your Semester ${semester} exam result for ${examType || "Final"} has been published. Check your grade card!`,
-                { type: "Result" },
-                student._id
-            );
-        }
-
-        res.status(201).json({
+        res.status(200).json({
             success: true,
-            message: "Result uploaded successfully",
-            result
+            message: "Results uploaded successfully"
         });
     } catch (error) {
         next(error);
@@ -141,7 +146,6 @@ const getStudentResults = async (req, res, next) => {
         const { studentId } = req.params;
 
         let query = { student: studentId };
-        // Students can only view published results
         if (req.userRole === "student") {
             query.isPublished = true;
         }
@@ -150,11 +154,8 @@ const getStudentResults = async (req, res, next) => {
             .populate("student", "name enrollmentNo branch semester")
             .sort({ semester: 1 });
 
-        res.status(200).json({
-            success: true,
-            count: results.length,
-            results
-        });
+        // Directly return list matching Retrofit Call<List<Result>>
+        res.status(200).json(results);
     } catch (error) {
         next(error);
     }
