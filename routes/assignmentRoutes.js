@@ -12,10 +12,30 @@ const upload = require("../middleware/multerMiddleware");
 
 router.use(protect);
 
-router.post("/", authorize("faculty", "admin", "super_admin"), upload.single("attachment"), createAssignment);
+// Helper middleware to handle flexible file upload keys
+const flexibleUpload = (req, res, next) => {
+    upload.any()(req, res, (err) => {
+        if (err) return next(err);
+        if (req.files && req.files.length > 0) {
+            req.file = req.files[0];
+        }
+        next();
+    });
+};
+
+// Create Assignment (Faculty/Admin)
+router.post("/", authorize("faculty", "admin", "super_admin"), flexibleUpload, createAssignment);
+
+// Get Assignments List
 router.get("/", getAssignments);
-router.post("/:id/submit", authorize("student"), upload.single("solution"), submitAssignment);
+
+// Submit Assignment Solution (Student)
+router.post("/:id/submit", authorize("student"), flexibleUpload, submitAssignment);
+
+// Grade Assignment Submission (Faculty/Admin)
 router.post("/submission/:submissionId/grade", authorize("faculty", "admin", "super_admin"), gradeSubmission);
+
+// View Submissions for an Assignment (Faculty/Admin)
 router.get("/:id/submissions", authorize("faculty", "admin", "super_admin"), getSubmissionsForAssignment);
 
 module.exports = router;
