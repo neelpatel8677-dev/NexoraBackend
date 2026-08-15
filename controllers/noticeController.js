@@ -1,43 +1,49 @@
-const Notification = require("../models/Notification");
-const { sendPushNotification, sendTopicNotification } = require("../services/fcmService");
+const Notice = require("../models/Notice");
+const { sendTopicNotification } = require("../services/fcmService");
 
 /**
- * @desc    Get Notifications for Current User
- * @route   GET /api/notifications
- * @access  Private
+ * @desc    Create Campus Notice
+ * @route   POST /api/notices
+ * @access  Private (Faculty, Admin)
  */
-const getUserNotifications = async (req, res, next) => {
+const createNotice = async (req, res, next) => {
     try {
-        const notifications = await Notification.find({ user: req.user._id })
-            .sort({ createdAt: -1 })
-            .limit(50);
+        const { title, content, category, department, semester, targetAudience } = req.body;
 
-        // Directly return list matching Retrofit Call<List<Notification>>
-        res.status(200).json(notifications);
-    } catch (error) {
-        next(error);
-    }
-};
-
-/**
- * @desc    Mark Notification as Read
- * @route   PATCH /api/notifications/:id/read
- * @access  Private
- */
-const markNotificationAsRead = async (req, res, next) => {
-    try {
-        const notification = await Notification.findById(req.params.id);
-        if (!notification) {
-            return res.status(404).json({ success: false, message: "Notification not found" });
+        if (!title || !content) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide both title and content for the notice"
+            });
         }
 
-        notification.read = true;
-        await notification.save();
+        const attachment = req.file ? `/uploads/${req.file.filename}` : "";
 
-        res.status(200).json({
+        const notice = await Notice.create({
+            title,
+            content,
+            category: category || "General",
+            department: department || "",
+            semester: semester ? Number(semester) : null,
+            targetAudience: targetAudience || "All",
+            createdBy: req.user ? (req.user.name || "Admin") : "Admin",
+            attachment
+        });
+
+        // Broadcast notification if FCM service is configured
+        if (typeof sendTopicNotification === "function") {
+            const topic = targetAudience === "Faculty" ? "faculty" : "students";
+            sendTopicNotification(
+                topic,
+                `📢 New Notice: ${title}`,
+                content.substring(0, 100) + "..."
+            ).catch((err) => console.error("FCM Topic Notification Error:", err.message));
+        }
+
+        res.status(201).json({
             success: true,
-            message: "Notification marked as read",
-            notification
+            message: "Notice published successfully",
+            notice
         });
     } catch (error) {
         next(error);
@@ -45,31 +51,61 @@ const markNotificationAsRead = async (req, res, next) => {
 };
 
 /**
- * @desc    Send Push Notification (Admin)
- * @route   POST /api/notifications/send
- * @access  Private (Admin)
+ * @desc    Get / Search Notices
+ * @route   GET /api/notices
+ * @access  Private
  */
-const sendDirectNotification = async (req, res, next) => {
+const getNotices = async (req, res, next) => {
     try {
-        const { targetType, target, title, body, type } = req.body;
+        const { category, department, search } = req.query;
 
-        if (targetType === "topic") {
-            await sendTopicNotification(target || "students", title, body, { type: type || "General" });
-        } else {
-            await sendPushNotification("", title, body, { type: type || "General" }, target);
+        let query = {};
+        if (category) query.category = category;
+        if (department) query.department = department;
+
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { content: { $regex: search, $options: "i" } }
+            ];
         }
 
-        res.status(200).json({
-            success: true,
-            message: "Push notification dispatched successfully"
-        });
+        const userRole = req.userRole;
+        if (userRole === "student") {
+            query.targetAudience = { $in: ["All", "Student"] };
+        } else if (userRole === "faculty") {
+            query.targetAudience = { $in: ["All", "Faculty"] };
+        }
+
+        const notices = await Notice.find(query).sort({ createdAt: -1 });
+
+        res.status(200).json(notices);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @desc    Delete Notice
+ * @route   DELETE /api/notices/:id
+ * @access  Private (Faculty, Admin)
+ */
+const deleteNotice = async (req, res, next) => {
+    try {
+        const notice = await Notice.findById(req.params.id);
+        if (!notice) {
+            return res.status(404).json({ success: false, message: "Notice not found" });
+        }
+
+        await notice.deleteOne();
+        res.status(200).json({ success: true, message: "Notice deleted successfully" });
     } catch (error) {
         next(error);
     }
 };
 
 module.exports = {
-    getUserNotifications,
-    markNotificationAsRead,
-    sendDirectNotification
+    createNotice,
+    getNotices,
+    deleteNotice
 };
