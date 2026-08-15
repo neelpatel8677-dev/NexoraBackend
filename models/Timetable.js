@@ -21,7 +21,7 @@ const TimetableSchema = new mongoose.Schema(
         dayOfWeek: {
             type: String,
             required: [true, "Day of week is required"],
-            enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+            trim: true
         },
         isPublished: {
             type: Boolean,
@@ -54,8 +54,12 @@ const TimetableSchema = new mongoose.Schema(
         ]
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+TimetableSchema.index({ department: 1, semester: 1, section: 1, dayOfWeek: 1 });
 
 module.exports = mongoose.model("Timetable", TimetableSchema);
