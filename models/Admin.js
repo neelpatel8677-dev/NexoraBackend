@@ -42,7 +42,9 @@ const AdminSchema = new mongoose.Schema(
         resetPasswordExpire: Date
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
 
@@ -62,7 +64,7 @@ AdminSchema.methods.getResetPasswordToken = function () {
         .createHash("sha256")
         .update(resetToken)
         .digest("hex");
-    this.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 mins
+    this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     return resetToken;
 };
 
