@@ -1,11 +1,14 @@
-const admin = require("firebase-admin");
+const rawAdmin = require("firebase-admin");
+
+// Handle CommonJS / ES module interop
+const admin = rawAdmin.default || rawAdmin;
 
 /**
  * Initialize Firebase Admin SDK for FCM Push Notifications
  */
 const initFirebase = () => {
     try {
-        const apps = admin.apps || (admin.default && admin.default.apps) || [];
+        const apps = admin.apps || (rawAdmin.apps) || [];
 
         if (apps.length === 0) {
             let serviceAccount = null;
@@ -20,13 +23,24 @@ const initFirebase = () => {
                 }
             }
 
-            if (serviceAccount && serviceAccount.project_id) {
-                admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount)
-                });
-                console.log("==================================");
-                console.log("✅ Firebase Admin SDK Initialized Successfully");
-                console.log("==================================");
+            if (serviceAccount && (serviceAccount.project_id || serviceAccount.projectId)) {
+                // Safely resolve the credential helper
+                const credentialHelper = (admin.credential && admin.credential.cert) 
+                    ? admin.credential 
+                    : (rawAdmin.credential && rawAdmin.credential.cert) 
+                        ? rawAdmin.credential 
+                        : null;
+
+                if (credentialHelper) {
+                    admin.initializeApp({
+                        credential: credentialHelper.cert(serviceAccount)
+                    });
+                    console.log("==================================");
+                    console.log("✅ Firebase Admin SDK Initialized Successfully");
+                    console.log("==================================");
+                } else {
+                    console.log("⚠️ Firebase credential helper not accessible. FCM running in simulation mode.");
+                }
             } else {
                 console.log("==================================");
                 console.log("⚠️ FIREBASE_SERVICE_ACCOUNT env not configured. FCM running in simulation mode.");
