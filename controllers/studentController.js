@@ -7,7 +7,7 @@ const Student = require("../models/Student");
  */
 const getAllStudents = async (req, res, next) => {
     try {
-        const { department, branch, semester, section, division, search, page = 1, limit = 50 } = req.query;
+        const { department, branch, semester, section, division, search, page = 1, limit = 100 } = req.query;
 
         let query = {};
 
@@ -35,14 +35,12 @@ const getAllStudents = async (req, res, next) => {
             .skip(skip)
             .limit(Number(limit));
 
-        res.status(200).json({
-            success: true,
-            total,
-            page: Number(page),
-            pages: Math.ceil(total / Number(limit)),
-            count: students.length,
-            students
-        });
+        // Returns direct list if requested by Android Retrofit Call<List<User>>
+        if (req.headers["accept-raw-list"] === "true") {
+            return res.status(200).json(students);
+        }
+
+        res.status(200).json(students);
     } catch (error) {
         next(error);
     }
@@ -76,17 +74,14 @@ const getStudentById = async (req, res, next) => {
             });
         }
 
-        res.status(200).json({
-            success: true,
-            student
-        });
+        res.status(200).json(student);
     } catch (error) {
         next(error);
     }
 };
 
 /**
- * @desc    Update student profile (admin/faculty can update all fields; student updates own fields only)
+ * @desc    Update student profile
  * @route   PUT /api/students/:id
  * @access  Private
  */
@@ -101,7 +96,6 @@ const updateStudentProfile = async (req, res, next) => {
             });
         }
 
-        // Students can only update their own profile
         if (
             req.userRole === "student" &&
             req.user._id.toString() !== student._id.toString()
@@ -112,7 +106,6 @@ const updateStudentProfile = async (req, res, next) => {
             });
         }
 
-        // Fields a student can update on their own profile
         const studentAllowedFields = [
             "name",
             "phone",
@@ -122,7 +115,6 @@ const updateStudentProfile = async (req, res, next) => {
             "fcmToken"
         ];
 
-        // Fields only admin/faculty can change
         const adminAllowedFields = [
             ...studentAllowedFields,
             "enrollmentNo",
@@ -144,7 +136,6 @@ const updateStudentProfile = async (req, res, next) => {
         });
 
         const updatedStudent = await student.save();
-
         const studentObj = updatedStudent.toObject();
         delete studentObj.password;
         delete studentObj.resetPasswordToken;
