@@ -12,7 +12,7 @@ const { generateChatResponse, analyzeStudentPerformance } = require("../services
  */
 const handleChat = async (req, res, next) => {
     try {
-        const { prompt } = req.body;
+        const prompt = req.body.prompt || req.body.message || req.body.query;
         if (!prompt) {
             return res.status(400).json({ success: false, message: "Please provide a prompt/question" });
         }
@@ -23,7 +23,6 @@ const handleChat = async (req, res, next) => {
         let historyDoc = await ChatHistory.findOne({ user: userId });
         const existingMessages = historyDoc ? historyDoc.messages : [];
 
-        // Generate response from Gemini API service
         const aiAnswer = await generateChatResponse(prompt, existingMessages, userRole);
 
         if (!historyDoc) {
@@ -41,8 +40,10 @@ const handleChat = async (req, res, next) => {
             await historyDoc.save();
         }
 
+        // Returns both 'message' and 'reply' to support ApiResponse and direct readers
         res.status(200).json({
             success: true,
+            message: aiAnswer,
             reply: aiAnswer,
             history: historyDoc.messages
         });
@@ -99,7 +100,6 @@ const getStudentAIReport = async (req, res, next) => {
             return res.status(404).json({ success: false, message: "Student not found" });
         }
 
-        // Fetch attendance stats & exam results for deep AI analysis
         const attendanceDocs = await Attendance.find({ "records.student": studentId });
         let totalClasses = attendanceDocs.length;
         let presentCount = 0;
@@ -113,7 +113,6 @@ const getStudentAIReport = async (req, res, next) => {
 
         const results = await Result.find({ student: studentId, isPublished: true });
 
-        // Run Gemini AI Risk Prediction analysis
         const analysisData = await analyzeStudentPerformance(student, attendanceSummary, results);
 
         let report = await AIReport.findOne({ student: studentId });
