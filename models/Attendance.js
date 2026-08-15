@@ -52,8 +52,13 @@ const AttendanceSchema = new mongoose.Schema(
         ]
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+// Compound index to optimize attendance lookups
+AttendanceSchema.index({ date: 1, subject: 1, department: 1, semester: 1, section: 1 });
 
 module.exports = mongoose.model("Attendance", AttendanceSchema);
