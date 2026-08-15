@@ -13,8 +13,8 @@ const NoticeSchema = new mongoose.Schema(
         },
         category: {
             type: String,
-            enum: ["College", "Department", "General", "Class"],
-            default: "General"
+            default: "General",
+            trim: true
         },
         department: {
             type: String,
@@ -26,8 +26,8 @@ const NoticeSchema = new mongoose.Schema(
         },
         targetAudience: {
             type: String,
-            enum: ["All", "Student", "Faculty"],
-            default: "All"
+            default: "All",
+            trim: true
         },
         createdBy: {
             type: String,
@@ -40,8 +40,12 @@ const NoticeSchema = new mongoose.Schema(
         }
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+NoticeSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Notice", NoticeSchema);
