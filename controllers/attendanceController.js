@@ -32,7 +32,7 @@ const markAttendance = async (req, res, next) => {
             records
         });
 
-        // Notify absent students via FCM
+        // Notify absent students asynchronously
         records.forEach(async (r) => {
             if (r.status === "Absent") {
                 const student = await Student.findById(r.student);
@@ -91,7 +91,7 @@ const markLectureAttendance = async (req, res, next) => {
 };
 
 /**
- * @desc    Get Student Overall, Monthly & Subject-wise Attendance Analytics
+ * @desc    Get Student Overall Attendance List
  * @route   GET /api/attendance/student/:studentId
  * @access  Private
  */
@@ -108,63 +108,28 @@ const getStudentAttendance = async (req, res, next) => {
             .populate("faculty", "name email department")
             .sort({ date: -1 });
 
-        let totalClasses = attendanceDocs.length;
-        let presentCount = 0;
-        let absentCount = 0;
-        let lateCount = 0;
-
-        const subjectStats = {};
-        const monthlyStats = {};
-
-        attendanceDocs.forEach((doc) => {
-            const studentRecord = doc.records.find((r) => r.student.toString() === studentId.toString());
-            const status = studentRecord ? studentRecord.status : "Absent";
-
-            if (status === "Present") presentCount++;
-            else if (status === "Absent") absentCount++;
-            else if (status === "Late") lateCount++;
-
-            // Subject-wise tracking
-            if (!subjectStats[doc.subject]) {
-                subjectStats[doc.subject] = { total: 0, present: 0, absent: 0, late: 0 };
-            }
-            subjectStats[doc.subject].total++;
-            if (status === "Present") subjectStats[doc.subject].present++;
-            else if (status === "Absent") subjectStats[doc.subject].absent++;
-            else if (status === "Late") subjectStats[doc.subject].late++;
-
-            // Monthly tracking
-            const monthYear = new Date(doc.date).toLocaleString("default", { month: "short", year: "numeric" });
-            if (!monthlyStats[monthYear]) {
-                monthlyStats[monthYear] = { total: 0, present: 0 };
-            }
-            monthlyStats[monthYear].total++;
-            if (status === "Present") monthlyStats[monthYear].present++;
+        // Map into flat structure matching Android Attendance model
+        const list = attendanceDocs.map(doc => {
+            const rec = doc.records.find(r => r.student.toString() === studentId.toString());
+            return {
+                _id: doc._id,
+                date: doc.date,
+                subject: doc.subject,
+                status: rec ? rec.status : "Absent",
+                faculty: doc.faculty,
+                semester: doc.semester,
+                department: doc.department
+            };
         });
 
-        const overallPercentage = totalClasses > 0 ? parseFloat(((presentCount / totalClasses) * 100).toFixed(2)) : 0;
-
-        res.status(200).json({
-            success: true,
-            summary: {
-                studentId,
-                totalClasses,
-                presentCount,
-                absentCount,
-                lateCount,
-                overallPercentage: `${overallPercentage}%`,
-                isShortage: overallPercentage < 75
-            },
-            subjectWiseStats: subjectStats,
-            monthlyStats
-        });
+        res.status(200).json(list);
     } catch (error) {
         next(error);
     }
 };
 
 /**
- * @desc    Get Class Attendance Analytics
+ * @desc    Get Class Attendance
  * @route   GET /api/attendance/class
  * @access  Private (Faculty, Admin)
  */
