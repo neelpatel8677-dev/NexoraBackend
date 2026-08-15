@@ -1,14 +1,41 @@
-const rawAdmin = require("firebase-admin");
+const admin = require("firebase-admin");
 
-// Handle CommonJS / ES module interop
-const admin = rawAdmin.default || rawAdmin;
+/**
+ * Helper to safely resolve cert function across all firebase-admin versions
+ */
+const resolveCert = (serviceAccount) => {
+    // 1. Classic SDK: admin.credential.cert
+    if (admin && admin.credential && typeof admin.credential.cert === "function") {
+        return admin.credential.cert(serviceAccount);
+    }
+    // 2. Default exported SDK: admin.default.credential.cert
+    if (admin && admin.default && admin.default.credential && typeof admin.default.credential.cert === "function") {
+        return admin.default.credential.cert(serviceAccount);
+    }
+    // 3. Modular SDK: require("firebase-admin/app").cert
+    try {
+        const { cert } = require("firebase-admin/app");
+        if (typeof cert === "function") {
+            return cert(serviceAccount);
+        }
+    } catch (e) {}
+    // 4. Modular SDK: require("firebase-admin/credential").cert
+    try {
+        const { cert } = require("firebase-admin/credential");
+        if (typeof cert === "function") {
+            return cert(serviceAccount);
+        }
+    } catch (e) {}
+
+    return null;
+};
 
 /**
  * Initialize Firebase Admin SDK for FCM Push Notifications
  */
 const initFirebase = () => {
     try {
-        const apps = admin.apps || (rawAdmin.apps) || [];
+        const apps = admin.apps || (admin.default && admin.default.apps) || [];
 
         if (apps.length === 0) {
             let serviceAccount = null;
@@ -23,34 +50,36 @@ const initFirebase = () => {
                 }
             }
 
-            if (serviceAccount && (serviceAccount.project_id || serviceAccount.projectId)) {
-                // Safely resolve the credential helper
-                const credentialHelper = (admin.credential && admin.credential.cert) 
-                    ? admin.credential 
-                    : (rawAdmin.credential && rawAdmin.credential.cert) 
-                        ? rawAdmin.credential 
-                        : null;
+            // Check if valid service account credentials exist (not placeholder dots)
+            const isValidCredentials = serviceAccount && 
+                serviceAccount.project_id && 
+                serviceAccount.project_id !== "..." && 
+                serviceAccount.private_key && 
+                serviceAccount.private_key !== "...";
 
-                if (credentialHelper) {
-                    admin.initializeApp({
-                        credential: credentialHelper.cert(serviceAccount)
-                    });
-                    console.log("==================================");
-                    console.log("✅ Firebase Admin SDK Initialized Successfully");
-                    console.log("==================================");
-                } else {
-                    console.log("⚠️ Firebase credential helper not accessible. FCM running in simulation mode.");
+            if (isValidCredentials) {
+                const credential = resolveCert(serviceAccount);
+                if (credential) {
+                    const initApp = admin.initializeApp || (admin.default && admin.default.initializeApp);
+                    if (typeof initApp === "function") {
+                        initApp({ credential });
+                        console.log("==================================");
+                        console.log("✅ Firebase Admin SDK Initialized Successfully");
+                        console.log("==================================");
+                        return;
+                    }
                 }
-            } else {
-                console.log("==================================");
-                console.log("⚠️ FIREBASE_SERVICE_ACCOUNT env not configured. FCM running in simulation mode.");
-                console.log("==================================");
             }
+
+            console.log("==================================");
+            console.log("ℹ️ FCM in simulation mode (Real push notifications will be simulated)");
+            console.log("==================================");
         }
     } catch (error) {
         console.error("==================================");
-        console.error("❌ Firebase Initialization Error:", error.message);
-        console.error("==================================");
+        console.error("⚠️ Firebase initialization skipped:", error.message);
+        console.log("ℹ️ Server running in simulation mode for FCM");
+        console.log("==================================");
     }
 };
 
