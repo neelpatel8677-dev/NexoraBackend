@@ -89,9 +89,13 @@ const StudentSchema = new mongoose.Schema(
         resetPasswordExpire: Date
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+StudentSchema.index({ department: 1, semester: 1, division: 1 });
 
 StudentSchema.pre("save", async function () {
     if (!this.isModified("password")) return;
