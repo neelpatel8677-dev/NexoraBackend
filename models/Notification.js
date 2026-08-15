@@ -22,17 +22,8 @@ const NotificationSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: [
-                "Attendance",
-                "Result",
-                "Assignment",
-                "Fee",
-                "Timetable",
-                "Notes",
-                "Notice",
-                "General"
-            ],
-            default: "General"
+            default: "General",
+            trim: true
         },
         read: {
             type: Boolean,
@@ -40,8 +31,12 @@ const NotificationSchema = new mongoose.Schema(
         }
     },
     {
-        timestamps: true
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+NotificationSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Notification", NotificationSchema);
