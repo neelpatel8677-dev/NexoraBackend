@@ -5,6 +5,7 @@ const {
     recordPayment,
     getStudentFees,
     getAllFees,
+    getRootFees,
     getFeeById,
     deleteFee
 } = require("../controllers/feeController");
@@ -12,6 +13,9 @@ const { protect, authorize } = require("../middleware/authMiddleware");
 
 // All routes require authentication
 router.use(protect);
+
+// Root fee endpoint
+router.get("/", getRootFees);
 
 // Admin: assign fee structure & record payment
 router.post("/assign", authorize("admin", "super_admin"), assignFee);

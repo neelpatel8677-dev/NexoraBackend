@@ -137,13 +137,60 @@ const publishResult = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get All Results (with filters & search)
+ * @route   GET /api/results/all
+ * @access  Private (Faculty, Admin)
+ */
+const getAllResults = async (req, res, next) => {
+    try {
+        const { semester, examType, isPublished, page = 1, limit = 50 } = req.query;
+
+        let query = {};
+        if (semester) query.semester = Number(semester);
+        if (examType) query.examType = examType;
+        if (isPublished !== undefined) query.isPublished = isPublished === "true";
+
+        const skip = (Number(page) - 1) * Number(limit);
+        const total = await Result.countDocuments(query);
+
+        const results = await Result.find(query)
+            .populate("student", "name enrollmentNo branch department semester")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(Number(limit));
+
+        res.status(200).json({
+            success: true,
+            total,
+            page: Number(page),
+            pages: Math.ceil(total / Number(limit)),
+            count: results.length,
+            results
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * @desc    Get Student Results
  * @route   GET /api/results/student/:studentId
  * @access  Private
  */
 const getStudentResults = async (req, res, next) => {
     try {
-        const { studentId } = req.params;
+        let studentId = req.params.studentId;
+        if (!studentId || studentId === "me") {
+            studentId = req.user._id.toString();
+        }
+
+        // Students can only view their own results
+        if (req.userRole === "student" && req.user._id.toString() !== studentId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. You can only view your own results."
+            });
+        }
 
         let query = { student: studentId };
         if (req.userRole === "student") {
@@ -156,6 +203,23 @@ const getStudentResults = async (req, res, next) => {
 
         // Directly return list matching Retrofit Call<List<Result>>
         res.status(200).json(results);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @desc    Root Results endpoint - dynamically serves student results or all results
+ * @route   GET /api/results or GET /api/result
+ * @access  Private
+ */
+const getRootResults = async (req, res, next) => {
+    try {
+        if (req.userRole === "student") {
+            req.params.studentId = req.user._id.toString();
+            return getStudentResults(req, res, next);
+        }
+        return getAllResults(req, res, next);
     } catch (error) {
         next(error);
     }
@@ -182,6 +246,8 @@ const deleteResult = async (req, res, next) => {
 module.exports = {
     uploadResult,
     publishResult,
+    getAllResults,
     getStudentResults,
+    getRootResults,
     deleteResult
 };

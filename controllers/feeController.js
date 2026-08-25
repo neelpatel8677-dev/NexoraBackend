@@ -116,11 +116,14 @@ const recordPayment = async (req, res, next) => {
  */
 const getStudentFees = async (req, res, next) => {
     try {
-        const { studentId } = req.params;
+        let studentId = req.params.studentId;
+        if (!studentId || studentId === "me") {
+            studentId = req.user._id.toString();
+        }
 
         if (
             req.userRole === "student" &&
-            req.user._id.toString() !== studentId
+            req.user._id.toString() !== studentId.toString()
         ) {
             return res.status(403).json({
                 success: false,
@@ -190,6 +193,23 @@ const getAllFees = async (req, res, next) => {
 };
 
 /**
+ * @desc    Root Fees endpoint - dynamically serves student fees or all fees
+ * @route   GET /api/fees or GET /api/fee
+ * @access  Private
+ */
+const getRootFees = async (req, res, next) => {
+    try {
+        if (req.userRole === "student") {
+            req.params.studentId = req.user._id.toString();
+            return getStudentFees(req, res, next);
+        }
+        return getAllFees(req, res, next);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * @desc    Get a specific fee record by ID
  * @route   GET /api/fees/:id
  * @access  Private
@@ -232,6 +252,7 @@ module.exports = {
     recordPayment,
     getStudentFees,
     getAllFees,
+    getRootFees,
     getFeeById,
     deleteFee
 };

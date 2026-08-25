@@ -4,12 +4,14 @@ const {
     markAttendance,
     markLectureAttendance,
     getStudentAttendance,
-    getClassAttendance
+    getClassAttendance,
+    getRootAttendance
 } = require("../controllers/attendanceController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 router.use(protect);
 
+router.get("/", getRootAttendance);
 router.post("/mark", authorize("faculty", "admin", "super_admin"), markAttendance);
 router.post("/lecture", authorize("faculty", "admin", "super_admin"), markLectureAttendance);
 router.get("/student/:studentId", getStudentAttendance);

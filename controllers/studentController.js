@@ -53,7 +53,8 @@ const getAllStudents = async (req, res, next) => {
  */
 const getStudentById = async (req, res, next) => {
     try {
-        const student = await Student.findById(req.params.id)
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
+        const student = await Student.findById(targetId)
             .select("-password -resetPasswordToken -resetPasswordExpire");
 
         if (!student) {
@@ -87,7 +88,8 @@ const getStudentById = async (req, res, next) => {
  */
 const updateStudentProfile = async (req, res, next) => {
     try {
-        let student = await Student.findById(req.params.id);
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
+        let student = await Student.findById(targetId);
 
         if (!student) {
             return res.status(404).json({
@@ -158,8 +160,9 @@ const updateStudentProfile = async (req, res, next) => {
  */
 const patchStudent = async (req, res, next) => {
     try {
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
         const student = await Student.findByIdAndUpdate(
-            req.params.id,
+            targetId,
             { $set: req.body },
             { new: true, runValidators: true }
         ).select("-password -resetPasswordToken -resetPasswordExpire");
@@ -185,7 +188,8 @@ const patchStudent = async (req, res, next) => {
  */
 const deleteStudent = async (req, res, next) => {
     try {
-        const student = await Student.findById(req.params.id);
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
+        const student = await Student.findById(targetId);
 
         if (!student) {
             return res.status(404).json({

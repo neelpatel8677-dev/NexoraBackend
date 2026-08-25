@@ -97,7 +97,18 @@ const markLectureAttendance = async (req, res, next) => {
  */
 const getStudentAttendance = async (req, res, next) => {
     try {
-        const { studentId } = req.params;
+        let studentId = req.params.studentId;
+        if (!studentId || studentId === "me") {
+            studentId = req.user._id.toString();
+        }
+
+        // Students can only view their own attendance
+        if (req.userRole === "student" && req.user._id.toString() !== studentId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. You can only view your own attendance records."
+            });
+        }
 
         const student = await Student.findById(studentId);
         if (!student) {
@@ -158,9 +169,27 @@ const getClassAttendance = async (req, res, next) => {
     }
 };
 
+/**
+ * @desc    Root Attendance endpoint - dynamically serves student or class attendance
+ * @route   GET /api/attendance or GET /api/attendence
+ * @access  Private
+ */
+const getRootAttendance = async (req, res, next) => {
+    try {
+        if (req.userRole === "student") {
+            req.params.studentId = req.user._id.toString();
+            return getStudentAttendance(req, res, next);
+        }
+        return getClassAttendance(req, res, next);
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     markAttendance,
     markLectureAttendance,
     getStudentAttendance,
-    getClassAttendance
+    getClassAttendance,
+    getRootAttendance
 };

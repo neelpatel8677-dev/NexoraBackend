@@ -43,7 +43,8 @@ const getAllFaculty = async (req, res, next) => {
  */
 const getFacultyById = async (req, res, next) => {
     try {
-        const faculty = await Faculty.findById(req.params.id)
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
+        const faculty = await Faculty.findById(targetId)
             .select("-password -resetPasswordToken -resetPasswordExpire");
 
         if (!faculty) {
@@ -66,7 +67,8 @@ const getFacultyById = async (req, res, next) => {
  */
 const updateFacultyProfile = async (req, res, next) => {
     try {
-        let faculty = await Faculty.findById(req.params.id);
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
+        let faculty = await Faculty.findById(targetId);
 
         if (!faculty) {
             return res.status(404).json({
@@ -126,8 +128,9 @@ const updateFacultyProfile = async (req, res, next) => {
  */
 const patchFaculty = async (req, res, next) => {
     try {
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
         const faculty = await Faculty.findByIdAndUpdate(
-            req.params.id,
+            targetId,
             { $set: req.body },
             { new: true, runValidators: true }
         ).select("-password -resetPasswordToken -resetPasswordExpire");
@@ -153,7 +156,8 @@ const patchFaculty = async (req, res, next) => {
  */
 const deleteFaculty = async (req, res, next) => {
     try {
-        const faculty = await Faculty.findById(req.params.id);
+        const targetId = req.params.id === "me" ? req.user._id : req.params.id;
+        const faculty = await Faculty.findById(targetId);
 
         if (!faculty) {
             return res.status(404).json({

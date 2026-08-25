@@ -76,16 +76,23 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/student", studentRoutes); // Alias
 app.use("/api/faculty", facultyRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/attendence", attendanceRoutes); // Common spelling alias fix
 app.use("/api/results", resultRoutes);
+app.use("/api/result", resultRoutes); // Alias
 app.use("/api/fees", feeRoutes);
+app.use("/api/fee", feeRoutes); // Alias
 app.use("/api/notes", noteRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/assignment", assignmentRoutes); // Alias
 app.use("/api/notices", noticeRoutes);
+app.use("/api/notice", noticeRoutes); // Alias
 app.use("/api/timetable", timetableRoutes);
+app.use("/api/timetables", timetableRoutes); // Alias
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/search", searchRoutes);
