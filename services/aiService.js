@@ -1,33 +1,60 @@
 const { aiClient } = require("../config/aiConfig");
+const { nexoraTools, executeTool } = require("./aiTools");
 
 /**
- * Generate AI Chat Response using Google Gemini API
+ * Generate AI Chat Response using Google Gemini API with Tool Calling
  * @param {string} prompt - User question
- * @param {Array} history - Past chat messages [{ role: 'user'|'model', text }]
+ * @param {Array} history - Past chat messages [{ sender: 'user'|'model', text }]
  * @param {string} userRole - 'student' | 'faculty'
+ * @param {string} userId - Auth user ID
  * @returns {Promise<string>} AI Generated Answer
  */
-const generateChatResponse = async (prompt, history = [], userRole = "student") => {
+const generateChatResponse = async (prompt, history = [], userRole = "student", userId) => {
     try {
         if (!process.env.GEMINI_API_KEY) {
-            return `[Nexora AI Offline]: Thank you for your question regarding "${prompt}". Please configure GEMINI_API_KEY in backend .env to enable live AI responses.`;
+            return `[Nexora AI Offline]: Please configure GEMINI_API_KEY to enable live AI responses.`;
         }
 
-        const systemInstruction = userRole === "student"
-            ? "You are Nexora AI, a friendly expert academic tutor for university students. Help with study concepts, exam guidance, and learning strategies concisely."
-            : "You are Nexora AI, an executive assistant for university faculty and administrators. Assist with curriculum planning, analytics interpretation, and academic administration.";
-
-        const response = await aiClient.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [
-                { role: "user", parts: [{ text: `${systemInstruction}\nUser Question: ${prompt}` }] }
-            ]
+        const model = aiClient.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            systemInstruction: userRole === "student"
+                ? "You are Nexora AI, a friendly expert academic tutor for university students. You have access to the student's Nexora profile, attendance, and results. Use them when asked. Be concise and helpful."
+                : "You are Nexora AI, an executive assistant for faculty. You can help with class management, performance analysis, and administrative tasks using Nexora data. Be professional."
         });
 
-        return response.text || "Sorry, I could not process your request at this moment.";
+        // Convert history to Gemini format
+        const geminiHistory = history.map(msg => ({
+            role: msg.sender === "user" ? "user" : "model",
+            parts: [{ text: msg.text }]
+        }));
+
+        const chat = model.startChat({
+            history: geminiHistory,
+            tools: [{ functionDeclarations: nexoraTools }]
+        });
+
+        let result = await chat.sendMessage(prompt);
+        let response = result.response;
+
+        // Handle Function Calling
+        const call = response.candidates[0].content.parts.find(p => p.functionCall);
+        if (call) {
+            const toolResult = await executeTool(call.functionCall, userId, userRole);
+
+            // Send tool result back to model to get final response
+            result = await chat.sendMessage([{
+                functionResponse: {
+                    name: call.functionCall.name,
+                    response: toolResult
+                }
+            }]);
+            response = result.response;
+        }
+
+        return response.text();
     } catch (error) {
-        console.error("Gemini AI API Error:", error.message);
-        return `I am currently experiencing connectivity issues. Please try again shortly. (${error.message})`;
+        console.error("Gemini AI API Error:", error);
+        return `I encountered an issue processing your request. Please try again. (${error.message})`;
     }
 };
 
@@ -53,7 +80,6 @@ Output JSON schema required:
 `;
 
         if (!process.env.GEMINI_API_KEY) {
-            // Smart Fallback calculation
             const overallPct = parseFloat(attendanceSummary.overallPercentage || 0);
             const isHighRisk = overallPct < 75;
             return {
@@ -68,20 +94,19 @@ Output JSON schema required:
             };
         }
 
-        const response = await aiClient.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: "user", parts: [{ text: prompt }] }]
-        });
+        const model = aiClient.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent(prompt);
+        const response = result.response;
 
         try {
-            const cleanText = response.text.replace(/```json|```/g, "").trim();
+            const cleanText = response.text().replace(/```json|```/g, "").trim();
             return JSON.parse(cleanText);
         } catch {
             return {
                 academicRisk: "MEDIUM",
                 attendanceTrend: "Analysis complete.",
                 weakSubjects: [],
-                recommendations: [response.text],
+                recommendations: [response.text()],
                 studyPlan: "Review course syllabus regularly."
             };
         }

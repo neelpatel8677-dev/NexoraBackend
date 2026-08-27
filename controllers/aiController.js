@@ -23,7 +23,7 @@ const handleChat = async (req, res, next) => {
         let historyDoc = await ChatHistory.findOne({ user: userId });
         const existingMessages = historyDoc ? historyDoc.messages : [];
 
-        const aiAnswer = await generateChatResponse(prompt, existingMessages, userRole);
+        const aiAnswer = await generateChatResponse(prompt, existingMessages, userRole, userId);
 
         if (!historyDoc) {
             historyDoc = await ChatHistory.create({
