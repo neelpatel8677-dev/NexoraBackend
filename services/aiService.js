@@ -1,4 +1,4 @@
-const { aiClient } = require("../config/aiConfig");
+const { genAI } = require("../config/aiConfig");
 const { nexoraTools, executeTool } = require("./aiTools");
 
 /**
@@ -11,11 +11,11 @@ const { nexoraTools, executeTool } = require("./aiTools");
  */
 const generateChatResponse = async (prompt, history = [], userRole = "student", userId) => {
     try {
-        if (!process.env.GEMINI_API_KEY) {
-            return `[Nexora AI Offline]: Please configure GEMINI_API_KEY to enable live AI responses.`;
+        if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "dummy_key") {
+            return `[Nexora AI Offline]: Please configure a valid GEMINI_API_KEY in the environment to enable live AI responses.`;
         }
 
-        const model = aiClient.getGenerativeModel({
+        const model = genAI.getGenerativeModel({
             model: "gemini-1.5-flash",
             systemInstruction: userRole === "student"
                 ? "You are Nexora AI, a friendly expert academic tutor for university students. You have access to the student's Nexora profile, attendance, and results. Use them when asked. Be concise and helpful."
@@ -37,7 +37,9 @@ const generateChatResponse = async (prompt, history = [], userRole = "student", 
         let response = result.response;
 
         // Handle Function Calling
-        const call = response.candidates[0].content.parts.find(p => p.functionCall);
+        const candidate = response.candidates[0];
+        const call = candidate.content.parts.find(p => p.functionCall);
+
         if (call) {
             const toolResult = await executeTool(call.functionCall, userId, userRole);
 
@@ -79,7 +81,7 @@ Output JSON schema required:
 }
 `;
 
-        if (!process.env.GEMINI_API_KEY) {
+        if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "dummy_key") {
             const overallPct = parseFloat(attendanceSummary.overallPercentage || 0);
             const isHighRisk = overallPct < 75;
             return {
@@ -94,7 +96,7 @@ Output JSON schema required:
             };
         }
 
-        const model = aiClient.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const result = await model.generateContent(prompt);
         const response = result.response;
 
