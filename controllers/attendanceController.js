@@ -115,25 +115,62 @@ const getStudentAttendance = async (req, res, next) => {
             return res.status(404).json({ success: false, message: "Student not found" });
         }
 
+        // Populate faculty details
         const attendanceDocs = await Attendance.find({ "records.student": studentId })
             .populate("faculty", "name email department")
             .sort({ date: -1 });
 
+        let presentCount = 0;
+        let absentCount = 0;
+        let lateCount = 0;
+        const subjectStatsMap = {};
+
         // Map into flat structure matching Android Attendance model
         const list = attendanceDocs.map(doc => {
             const rec = doc.records.find(r => r.student.toString() === studentId.toString());
+            const status = rec ? rec.status : "Absent";
+
+            if (status === "Present") presentCount++;
+            else if (status === "Absent") absentCount++;
+            else if (status === "Late") lateCount++;
+
+            // Subject wise stats
+            if (!subjectStatsMap[doc.subject]) {
+                subjectStatsMap[doc.subject] = { total: 0, present: 0, absent: 0, late: 0 };
+            }
+            subjectStatsMap[doc.subject].total++;
+            if (status === "Present") subjectStatsMap[doc.subject].present++;
+            else if (status === "Absent") subjectStatsMap[doc.subject].absent++;
+            else if (status === "Late") subjectStatsMap[doc.subject].late++;
+
             return {
                 _id: doc._id,
                 date: doc.date,
                 subject: doc.subject,
-                status: rec ? rec.status : "Absent",
+                status: status,
                 faculty: doc.faculty,
                 semester: doc.semester,
                 department: doc.department
             };
         });
 
-        res.status(200).json(list);
+        const totalClasses = attendanceDocs.length;
+        const percentage = totalClasses > 0 ? (presentCount * 100) / totalClasses : 0;
+
+        res.status(200).json({
+            success: true,
+            summary: {
+                studentId,
+                totalClasses,
+                presentCount,
+                absentCount,
+                lateCount,
+                overallPercentage: percentage.toFixed(0) + "%",
+                isShortage: percentage < 75
+            },
+            subjectWiseStats: subjectStatsMap,
+            records: list
+        });
     } catch (error) {
         next(error);
     }
@@ -186,10 +223,61 @@ const getRootAttendance = async (req, res, next) => {
     }
 };
 
+/**
+ * @desc    Bulk Mark Attendance (from Android app list)
+ * @route   POST /api/attendance/bulk
+ * @access  Private (Faculty, Admin)
+ */
+const bulkMarkAttendance = async (req, res, next) => {
+    try {
+        const attendanceList = req.body; // Array of { studentId, status, subject, date, department, semester }
+
+        if (!Array.isArray(attendanceList) || attendanceList.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Payload must be a non-empty array of attendance records"
+            });
+        }
+
+        // Take metadata from the first record
+        const first = attendanceList[0];
+        const date = first.date ? new Date(first.date) : new Date();
+        const subject = first.subject || "General";
+        const department = first.department || "Unknown";
+        const semester = first.semester || 1;
+
+        // Group records for the backend model
+        const records = attendanceList.map(item => ({
+            student: item.studentId,
+            status: item.status || "Present"
+        }));
+
+        const attendance = await Attendance.create({
+            date,
+            subject,
+            department,
+            branch: first.branch || department, // Fallback to department if branch missing
+            semester,
+            section: first.section || "A",
+            faculty: req.user._id,
+            records
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Bulk attendance marked successfully",
+            attendance
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     markAttendance,
     markLectureAttendance,
     getStudentAttendance,
     getClassAttendance,
-    getRootAttendance
+    getRootAttendance,
+    bulkMarkAttendance
 };

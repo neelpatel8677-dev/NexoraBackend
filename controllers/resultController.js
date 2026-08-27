@@ -201,8 +201,11 @@ const getStudentResults = async (req, res, next) => {
             .populate("student", "name enrollmentNo branch semester")
             .sort({ semester: 1 });
 
-        // Directly return list matching Retrofit Call<List<Result>>
-        res.status(200).json(results);
+        res.status(200).json({
+            success: true,
+            count: results.length,
+            results: results
+        });
     } catch (error) {
         next(error);
     }

@@ -135,8 +135,24 @@ const getStudentFees = async (req, res, next) => {
             .populate("student", "name enrollmentNo branch semester department")
             .sort({ semester: 1 });
 
-        // Directly return list matching Retrofit Call<List<Fee>>
-        res.status(200).json(feeRecords);
+        let totalAssigned = 0;
+        let totalPaid = 0;
+        feeRecords.forEach(f => {
+            totalAssigned += f.totalAmount;
+            totalPaid += f.paidAmount;
+        });
+
+        res.status(200).json({
+            success: true,
+            count: feeRecords.length,
+            summary: {
+                totalSemesters: feeRecords.length,
+                totalFeeAssigned: totalAssigned,
+                totalFeePaid: totalPaid,
+                totalFeePending: Math.max(0, totalAssigned - totalPaid)
+            },
+            fees: feeRecords
+        });
     } catch (error) {
         next(error);
     }

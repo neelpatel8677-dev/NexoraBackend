@@ -5,7 +5,8 @@ const {
     markLectureAttendance,
     getStudentAttendance,
     getClassAttendance,
-    getRootAttendance
+    getRootAttendance,
+    bulkMarkAttendance
 } = require("../controllers/attendanceController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
@@ -13,6 +14,7 @@ router.use(protect);
 
 router.get("/", getRootAttendance);
 router.post("/mark", authorize("faculty", "admin", "super_admin"), markAttendance);
+router.post("/bulk", authorize("faculty", "admin", "super_admin"), bulkMarkAttendance);
 router.post("/lecture", authorize("faculty", "admin", "super_admin"), markLectureAttendance);
 router.get("/student/:studentId", getStudentAttendance);
 router.get("/class", authorize("faculty", "admin", "super_admin"), getClassAttendance);

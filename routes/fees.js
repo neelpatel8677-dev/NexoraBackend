@@ -18,11 +18,11 @@ router.use(protect);
 router.get("/", getRootFees);
 
 // Admin: assign fee structure & record payment
-router.post("/assign", authorize("admin", "super_admin"), assignFee);
-router.post("/record-payment", authorize("admin", "super_admin"), recordPayment);
+router.post("/assign", authorize("admin", "super_admin", "faculty"), assignFee);
+router.post("/record-payment", authorize("admin", "super_admin", "faculty"), recordPayment);
 
 // Admin: view all fee records with financial summary
-router.get("/all", authorize("admin", "super_admin"), getAllFees);
+router.get("/all", authorize("admin", "super_admin", "faculty"), getAllFees);
 
 // Anyone: get fee records for a specific student
 router.get("/student/:studentId", getStudentFees);
@@ -31,6 +31,6 @@ router.get("/student/:studentId", getStudentFees);
 router.get("/:id", getFeeById);
 
 // Admin: delete a fee record
-router.delete("/:id", authorize("admin", "super_admin"), deleteFee);
+router.delete("/:id", authorize("admin", "super_admin", "faculty"), deleteFee);
 
 module.exports = router;

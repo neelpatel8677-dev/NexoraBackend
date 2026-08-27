@@ -80,8 +80,11 @@ const getNotes = async (req, res, next) => {
             .populate("uploadedBy", "name employeeId email")
             .sort({ createdAt: -1 });
 
-        // Directly return list matching Retrofit Call<List<Note>>
-        res.status(200).json(notes);
+        res.status(200).json({
+            success: true,
+            count: notes.length,
+            notes: notes
+        });
     } catch (error) {
         next(error);
     }

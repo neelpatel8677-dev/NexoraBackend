@@ -1,4 +1,5 @@
 const Timetable = require("../models/Timetable");
+const TimetableImage = require("../models/TimetableImage");
 const { sendTopicNotification } = require("../services/fcmService");
 
 /**
@@ -109,8 +110,79 @@ const getFacultySchedule = async (req, res, next) => {
     }
 };
 
+/**
+ * @desc    Upload Timetable Image
+ * @route   POST /api/timetable/upload
+ * @access  Private (Admin, Faculty)
+ */
+const uploadTimetableImage = async (req, res, next) => {
+    try {
+        const { department, semester, uploadedBy } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Please upload an image file" });
+        }
+
+        const imageUrl = `/uploads/timetable/${req.file.filename}`;
+
+        // Deactivate previous timetable for this dept/sem
+        await TimetableImage.updateMany(
+            { department, semester: Number(semester) },
+            { isActive: false }
+        );
+
+        const timetableImage = await TimetableImage.create({
+            department,
+            semester: Number(semester),
+            imageUrl,
+            uploadedBy: uploadedBy || req.user._id
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Timetable image uploaded successfully",
+            imageUrl: timetableImage.imageUrl
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @desc    Get Timetable Image
+ * @route   GET /api/timetable/image
+ * @access  Private
+ */
+const getTimetableImage = async (req, res, next) => {
+    try {
+        const { department, semester } = req.query;
+
+        const timetable = await TimetableImage.findOne({
+            department,
+            semester: Number(semester),
+            isActive: true
+        }).sort({ createdAt: -1 });
+
+        if (!timetable) {
+            return res.status(404).json({
+                success: false,
+                message: "No timetable image found for selected department and semester"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            imageUrl: timetable.imageUrl
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createOrUpdateTimetable,
     getStudentTimetable,
-    getFacultySchedule
+    getFacultySchedule,
+    uploadTimetableImage,
+    getTimetableImage
 };
